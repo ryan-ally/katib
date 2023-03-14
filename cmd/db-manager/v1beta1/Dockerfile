@@ -34,7 +34,7 @@ RUN if [ "$(uname -m)" = "ppc64le" ]; then \
     chmod +x /bin/grpc_health_probe
 
 # Copy the db-manager into a thin image.
-FROM alpine:3.15
+FROM alpine:3.16
 WORKDIR /app
 COPY --from=build-env /bin/grpc_health_probe /bin/
 COPY --from=build-env /go/src/github.com/kubeflow/katib/katib-db-manager /app/
