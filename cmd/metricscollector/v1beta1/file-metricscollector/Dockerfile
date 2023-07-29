@@ -22,7 +22,7 @@ RUN if [ "$(uname -m)" = "ppc64le" ]; then \
     fi
 
 # Copy the file metrics collector into a thin image.
-FROM alpine:3.15
+FROM alpine:3.16
 WORKDIR /app
 COPY --from=build-env /go/src/github.com/kubeflow/katib/file-metricscollector .
 ENTRYPOINT ["./file-metricscollector"]
