@@ -1,3 +1,4 @@
+---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: kubeflow
@@ -58,3 +59,11 @@ vars:
 
 configurations:
   - params.yaml
+
+configMapGenerator:
+  - name: katib-config
+    behavior: create
+    files:
+      - katib-config.yaml
+    options:
+      disableNameSuffixHash: true

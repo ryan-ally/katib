@@ -18,14 +18,13 @@ package common
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	psutil "github.com/shirou/gopsutil/process"
+	psutil "github.com/shirou/gopsutil/v3/process"
 	"k8s.io/klog"
 )
 
@@ -139,7 +138,7 @@ func WaitPIDs(pids map[int]bool, mainPid int, opts WaitPidsOpts) error {
 						if opts.CompletedMarkedDirPath != "" {
 							markFile := filepath.Join(opts.CompletedMarkedDirPath, fmt.Sprintf("%d.pid", pid))
 							// Read file with "completed" marker
-							contents, err := ioutil.ReadFile(markFile)
+							contents, err := os.ReadFile(markFile)
 							if err != nil {
 								return fmt.Errorf("training container is failed. Unable to read file %v for pid %v, error: %v", markFile, pid, err)
 							}

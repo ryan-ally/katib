@@ -114,33 +114,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // addWatch adds a new Controller to mgr with r as the reconcile.Reconciler
 func addWatch(mgr manager.Manager, c controller.Controller) error {
 	// Watch for changes to Experiment
-	err := c.Watch(&source.Kind{Type: &experimentsv1beta1.Experiment{}}, &handler.EnqueueRequestForObject{})
+	err := c.Watch(source.Kind(mgr.GetCache(), &experimentsv1beta1.Experiment{}), &handler.EnqueueRequestForObject{})
 	if err != nil {
 		log.Error(err, "Experiment watch failed")
 		return err
 	}
 
 	// Watch for trials for the experiments
-	err = c.Watch(
-		&source.Kind{Type: &trialsv1beta1.Trial{}},
-		&handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &experimentsv1beta1.Experiment{},
-		})
-
-	if err != nil {
+	eventHandler := handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &experimentsv1beta1.Experiment{}, handler.OnlyControllerOwner())
+	if err = c.Watch(source.Kind(mgr.GetCache(), &trialsv1beta1.Trial{}), eventHandler); err != nil {
 		log.Error(err, "Trial watch failed")
 		return err
 	}
-
-	err = c.Watch(
-		&source.Kind{Type: &suggestionsv1beta1.Suggestion{}},
-		&handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &experimentsv1beta1.Experiment{},
-		})
-
-	if err != nil {
+	if err = c.Watch(source.Kind(mgr.GetCache(), &suggestionsv1beta1.Suggestion{}), eventHandler); err != nil {
 		log.Error(err, "Suggestion watch failed")
 		return err
 	}
@@ -460,12 +446,19 @@ func (r *ReconcileExperiment) ReconcileSuggestions(instance *experimentsv1beta1.
 	logger := log.WithValues("Experiment", types.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()})
 	var assignments []suggestionsv1beta1.TrialAssignment
 	currentCount := int32(len(trialList))
+	incompleteEarlyStoppingCount := int32(0)
 	trialNames := map[string]bool{}
 	for _, trial := range trialList {
 		trialNames[trial.Name] = true
+
+		if !trial.IsObservationAvailable() && trial.IsEarlyStopped() {
+			incompleteEarlyStoppingCount += 1
+		}
 	}
 
-	suggestionRequestsCount := currentCount + addCount
+	// Exclude the number of incomplete early stopping trials from total suggestion requests
+	// This means that no new trials will be requested from suggestion service until observations are ready for early stopped trials
+	suggestionRequestsCount := currentCount + addCount - incompleteEarlyStoppingCount
 
 	logger.Info("GetOrCreateSuggestion", "name", instance.Name, "Suggestion Requests", suggestionRequestsCount)
 	original, err := r.GetOrCreateSuggestion(instance, suggestionRequestsCount)

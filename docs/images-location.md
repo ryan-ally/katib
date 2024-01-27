@@ -64,17 +64,6 @@ The following table shows images for the
         <a href="https://github.com/docker-library/mysql/blob/c506174eab8ae160f56483e8d72410f8f1e1470f/8.0/Dockerfile.debian">Dockerfile</a>
       </td>
     </tr>
-    <tr align="center">
-      <td>
-        <code>docker.io/kubeflowkatib/cert-generator</code>
-      </td>
-      <td>
-        Katib Cert Generator
-      </td>
-      <td>
-        <a href="https://github.com/kubeflow/katib/blob/master/cmd/cert-generator/v1beta1/Dockerfile">Dockerfile</a>
-      </td>
-    </tr>
   </tbody>
 </table>
 
@@ -149,17 +138,6 @@ and the [Katib Early Stopping algorithms](https://www.kubeflow.org/docs/componen
       </td>
       <td>
         <a href="https://github.com/kubeflow/katib/blob/master/cmd/suggestion/hyperopt/v1beta1/Dockerfile">Dockerfile</a>
-      </td>
-    </tr>
-    <tr align="center">
-      <td>
-        <code>docker.io/kubeflowkatib/suggestion-chocolate</code>
-      </td>
-      <td>
-        <a href="https://github.com/AIworx-Labs/chocolate">Chocolate</a> Suggestion
-      </td>
-      <td>
-        <a href="https://github.com/kubeflow/katib/blob/master/cmd/suggestion/chocolate/v1beta1/Dockerfile">Dockerfile</a>
       </td>
     </tr>
     <tr align="center">
@@ -273,13 +251,24 @@ The following table shows images for training containers which are used in the
     </tr>
     <tr align="center">
       <td>
-        <code>docker.io/kubeflowkatib/pytorch-mnist</code>
+        <code>docker.io/kubeflowkatib/pytorch-mnist-cpu</code>
       </td>
       <td>
-        PyTorch MNIST example with printing metrics to the file or StdOut
+        PyTorch MNIST example with printing metrics to the file or StdOut with CPU support
       </td>
       <td>
-        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/pytorch-mnist/Dockerfile">Dockerfile</a>
+        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/pytorch-mnist/Dockerfile.cpu">Dockerfile</a>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <code>docker.io/kubeflowkatib/pytorch-mnist-gpu</code>
+      </td>
+      <td>
+        PyTorch MNIST example with printing metrics to the file or StdOut with GPU support
+      </td>
+      <td>
+        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/pytorch-mnist/Dockerfile.gpu">Dockerfile</a>
       </td>
     </tr>
     <tr align="center">
@@ -361,13 +350,24 @@ The following table shows images for training containers which are used in the
     </tr>
     <tr align="center">
       <td>
-        <code>docker.io/kubeflowkatib/darts-cnn-cifar10</code>
+        <code>docker.io/kubeflowkatib/darts-cnn-cifar10-gpu</code>
       </td>
       <td>
-        PyTorch CIFAR-10 CNN example for DARTS
+        PyTorch CIFAR-10 CNN example for DARTS with GPU support
       </td>
       <td>
-        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/darts-cnn-cifar10/Dockerfile">Dockerfile</a>
+        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/darts-cnn-cifar10/Dockerfile.gpu">Dockerfile</a>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <code>docker.io/kubeflowkatib/darts-cnn-cifar10-cpu</code>
+      </td>
+      <td>
+        PyTorch CIFAR-10 CNN example for DARTS with CPU support
+      </td>
+      <td>
+        <a href="https://github.com/kubeflow/katib/blob/master/examples/v1beta1/trial-images/darts-cnn-cifar10/Dockerfile.cpu">Dockerfile</a>
       </td>
     </tr>
 </table>

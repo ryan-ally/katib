@@ -70,14 +70,18 @@ with the appropriate permission:
     - pipelineruns
     - taskruns
   verbs:
-    - "*"
+    - "get"
+    - "list"
+    - "watch"
+    - "create"
+    - "delete"
 ```
 
 Run the following command to update Katib ClusterRole:
 
 ```bash
 kubectl patch ClusterRole katib-controller -n kubeflow --type=json \
-  -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups":["tekton.dev"],"resources":["pipelineruns", "taskruns"],"verbs":["*"]}}]'
+  -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups":["tekton.dev"],"resources":["pipelineruns", "taskruns"],"verbs":["get", "list", "watch", "create", "delete"]}}]'
 ```
 
 In addition to that, you have to modify Katib
@@ -97,7 +101,6 @@ Check that Katib Controller's pod was restarted:
 $ kubectl get pods -n kubeflow
 
 NAME                                         READY   STATUS      RESTARTS   AGE
-katib-cert-generator-hnv6q                   0/1     Completed   0          6m12s
 katib-controller-784994d449-9bgj9            1/1     Running     0          28s
 katib-db-manager-78697c7bd4-ck7l8            1/1     Running     0          6m13s
 katib-mysql-854cdb87c4-krcm9                 1/1     Running     0          6m13s

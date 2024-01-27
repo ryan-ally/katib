@@ -44,9 +44,6 @@ docker push "${REGISTRY}/katib-db-manager:${TAG}"
 echo -e "\nPushing Katib UI image...\n"
 docker push "${REGISTRY}/katib-ui:${TAG}"
 
-echo -e "\nPushing Katib cert generator image...\n"
-docker push "${REGISTRY}/cert-generator:${TAG}"
-
 echo -e "\nPushing file metrics collector image...\n"
 docker push "${REGISTRY}/file-metrics-collector:${TAG}"
 
@@ -58,9 +55,6 @@ echo -e "\nPushing suggestion images..."
 
 echo -e "\nPushing hyperopt suggestion...\n"
 docker push "${REGISTRY}/suggestion-hyperopt:${TAG}"
-
-echo -e "\nPushing chocolate suggestion...\n"
-docker push "${REGISTRY}/suggestion-chocolate:${TAG}"
 
 echo -e "\nPushing hyperband suggestion...\n"
 docker push "${REGISTRY}/suggestion-hyperband:${TAG}"
@@ -80,6 +74,9 @@ docker push "${REGISTRY}/suggestion-enas:${TAG}"
 echo -e "\nPushing DARTS suggestion...\n"
 docker push "${REGISTRY}/suggestion-darts:${TAG}"
 
+echo -e "\nPushing PBT suggestion...\n"
+docker push "${REGISTRY}/suggestion-pbt:${TAG}"
+
 # Early stopping images
 echo -e "\nPushing early stopping images...\n"
 
@@ -95,8 +92,11 @@ docker push "${REGISTRY}/mxnet-mnist:${TAG}"
 echo -e "\nPushing Tensorflow with summaries mnist training container example...\n"
 docker push "${REGISTRY}/tf-mnist-with-summaries:${TAG}"
 
-echo -e "\nPushing PyTorch mnist training container example...\n"
-docker push "${REGISTRY}/pytorch-mnist:${TAG}"
+echo -e "\nPushing PyTorch mnist training container example with CPU support...\n"
+docker push "${REGISTRY}/pytorch-mnist-cpu:${TAG}"
+
+echo -e "\nPushing PyTorch mnist training container example with GPU support...\n"
+docker push "${REGISTRY}/pytorch-mnist-gpu:${TAG}"
 
 echo -e "\nPushing Keras CIFAR-10 CNN training container example for ENAS with GPU support...\n"
 docker push "${REGISTRY}/enas-cnn-cifar10-gpu:${TAG}"
@@ -104,7 +104,13 @@ docker push "${REGISTRY}/enas-cnn-cifar10-gpu:${TAG}"
 echo -e "\nPushing Keras CIFAR-10 CNN training container example for ENAS with CPU support...\n"
 docker push "${REGISTRY}/enas-cnn-cifar10-cpu:${TAG}"
 
-echo -e "\nPushing PyTorch CIFAR-10 CNN training container example for DARTS...\n"
-docker push "${REGISTRY}/darts-cnn-cifar10:${TAG}"
+echo -e "\nPushing PyTorch CIFAR-10 CNN training container example for DARTS with CPU support...\n"
+docker push "${REGISTRY}/darts-cnn-cifar10-cpu:${TAG}"
+
+echo -e "\nPushing PyTorch CIFAR-10 CNN training container example for DARTS with GPU support...\n"
+docker push "${REGISTRY}/darts-cnn-cifar10-gpu:${TAG}"
+
+echo -e "\nPushing dynamic learning rate training container example for PBT...\n"
+docker push "${REGISTRY}/simple-pbt:${TAG}"
 
 echo -e "\nAll Katib images with ${TAG} tag have been pushed successfully!\n"

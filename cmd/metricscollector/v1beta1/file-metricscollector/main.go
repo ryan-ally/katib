@@ -42,7 +42,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -51,8 +50,9 @@ import (
 	"time"
 
 	"github.com/hpcloud/tail"
-	psutil "github.com/shirou/gopsutil/process"
+	psutil "github.com/shirou/gopsutil/v3/process"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/klog"
 
 	commonv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/common/v1beta1"
@@ -160,7 +160,9 @@ func watchMetricsFile(mFile string, stopRules stopRulesFlag, filters []string, f
 	checkMetricFile(mFile)
 
 	// Get Main process.
-	_, mainProcPid, err := common.GetMainProcesses(mFile)
+	// Extract the metric file dir path based on the file name.
+	mDirPath, _ := filepath.Split(mFile)
+	_, mainProcPid, err := common.GetMainProcesses(mDirPath)
 	if err != nil {
 		klog.Fatalf("GetMainProcesses failed: %v", err)
 	}
@@ -267,7 +269,7 @@ func watchMetricsFile(mFile string, stopRules stopRulesFlag, filters []string, f
 				klog.Fatalf("Create mark file %v error: %v", markFile, err)
 			}
 
-			err = ioutil.WriteFile(markFile, []byte(common.TrainingEarlyStopped), 0)
+			err = os.WriteFile(markFile, []byte(common.TrainingEarlyStopped), 0)
 			if err != nil {
 				klog.Fatalf("Write to file %v error: %v", markFile, err)
 			}
@@ -305,7 +307,7 @@ func watchMetricsFile(mFile string, stopRules stopRulesFlag, filters []string, f
 			}
 
 			// Create connection and client for Early Stopping service.
-			conn, err := grpc.Dial(*earlyStopServiceAddr, grpc.WithInsecure())
+			conn, err := grpc.Dial(*earlyStopServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				klog.Fatalf("Could not connect to Early Stopping service, error: %v", err)
 			}
@@ -427,7 +429,7 @@ func main() {
 
 func reportMetrics(filters []string, fileFormat commonv1beta1.FileFormat) {
 
-	conn, err := grpc.Dial(*dbManagerServiceAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(*dbManagerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		klog.Fatalf("Could not connect to DB manager service, error: %v", err)
 	}

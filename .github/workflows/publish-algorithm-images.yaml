@@ -2,36 +2,28 @@ name: Publish AutoML Algorithm Images
 
 on:
   push:
-    branches:
-      - master
-
-env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  pull_request:
+    paths-ignore:
+      - "pkg/ui/v1beta1/frontend/**"
 
 jobs:
   algorithm:
     name: Publish Image
-    # Trigger workflow only for kubeflow/katib repository.
-    if: github.repository == 'kubeflow/katib'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Publish Component ${{ matrix.component-name }}
-        uses: ./.github/workflows/template-publish-image
-        with:
-          image: docker.io/kubeflowkatib/${{ matrix.component-name }}
-          dockerfile: ${{ matrix.dockerfile }}
+    uses: ./.github/workflows/build-and-publish-images.yaml
+    with:
+      component-name: ${{ matrix.component-name }}
+      platforms: linux/amd64,linux/arm64
+      dockerfile: ${{ matrix.dockerfile }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - component-name: suggestion-hyperopt
             dockerfile: cmd/suggestion/hyperopt/v1beta1/Dockerfile
-          - component-name: suggestion-chocolate
-            dockerfile: cmd/suggestion/chocolate/v1beta1/Dockerfile
           - component-name: suggestion-hyperband
             dockerfile: cmd/suggestion/hyperband/v1beta1/Dockerfile
           - component-name: suggestion-skopt
@@ -40,6 +32,8 @@ jobs:
             dockerfile: cmd/suggestion/goptuna/v1beta1/Dockerfile
           - component-name: suggestion-optuna
             dockerfile: cmd/suggestion/optuna/v1beta1/Dockerfile
+          - component-name: suggestion-pbt
+            dockerfile: cmd/suggestion/pbt/v1beta1/Dockerfile
           - component-name: suggestion-enas
             dockerfile: cmd/suggestion/nas/enas/v1beta1/Dockerfile
           - component-name: suggestion-darts

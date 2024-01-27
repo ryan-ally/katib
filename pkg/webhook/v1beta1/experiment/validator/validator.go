@@ -83,6 +83,18 @@ func (g *DefaultValidator) ValidateExperiment(instance, oldInst *experimentsv1be
 	if instance.Spec.ParallelTrialCount != nil && *instance.Spec.ParallelTrialCount <= 0 {
 		return fmt.Errorf("spec.parallelTrialCount must be greater than 0")
 	}
+
+	if instance.Spec.MaxFailedTrialCount != nil && instance.Spec.MaxTrialCount != nil {
+		if *instance.Spec.MaxFailedTrialCount > *instance.Spec.MaxTrialCount {
+			return fmt.Errorf("spec.maxFailedTrialCount should be less than or equal to spec.maxTrialCount")
+		}
+	}
+	if instance.Spec.ParallelTrialCount != nil && instance.Spec.MaxTrialCount != nil {
+		if *instance.Spec.ParallelTrialCount > *instance.Spec.MaxTrialCount {
+			return fmt.Errorf("spec.paralelTrialCount should be less than or equal to spec.maxTrialCount")
+		}
+	}
+
 	if oldInst != nil {
 		// We should validate restart only if appropriate fields are changed.
 		// Otherwise check below is triggered when experiment is deleted.
@@ -364,26 +376,22 @@ func (g *DefaultValidator) validateTrialTemplate(instance *experimentsv1beta1.Ex
 func (g *DefaultValidator) validateTrialJob(runSpec *unstructured.Unstructured) error {
 	gvk := runSpec.GroupVersionKind()
 
-	// Validate only Job
-	switch gvk.Kind {
-	case consts.JobKindJob:
-		batchJob := batchv1.Job{}
-
-		// Validate that RunSpec can be converted to Batch Job
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(runSpec.Object, &batchJob)
-		if err != nil {
-			return fmt.Errorf("unable to convert spec.TrialTemplate: %v to %v: %v", runSpec.Object, gvk.Kind, err)
-		}
-
-		// Try to patch runSpec to Batch Job
-		// TODO (andreyvelich): Do we want to remove it completely ?
-		err = validatePatchJob(runSpec, batchJob, gvk.Kind)
-		if err != nil {
-			return err
-		}
+	// Validate only Kubernetes Job
+	if gvk.GroupVersion() != batchv1.SchemeGroupVersion || gvk.Kind != consts.JobKindJob {
+		return nil
 	}
 
-	return nil
+	batchJob := batchv1.Job{}
+
+	// Validate that RunSpec can be converted to Batch Job
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(runSpec.Object, &batchJob)
+	if err != nil {
+		return fmt.Errorf("unable to convert spec.TrialTemplate: %v to %v: %v", runSpec.Object, gvk.Kind, err)
+	}
+
+	// Try to patch runSpec to Batch Job
+	// TODO (andreyvelich): Do we want to remove it completely ?
+	return validatePatchJob(runSpec, batchJob, gvk.Kind)
 }
 
 func validatePatchJob(runSpec *unstructured.Unstructured, job interface{}, jobType string) error {

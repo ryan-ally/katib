@@ -29,13 +29,13 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	configv1beta1 "github.com/kubeflow/katib/pkg/apis/config/v1beta1"
 	commonv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/common/v1beta1"
 	experimentsv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/experiments/v1beta1"
 	experimentutil "github.com/kubeflow/katib/pkg/controller.v1beta1/experiment/util"
-	util "github.com/kubeflow/katib/pkg/controller.v1beta1/util"
+	"github.com/kubeflow/katib/pkg/controller.v1beta1/util"
 
 	manifestmock "github.com/kubeflow/katib/pkg/mock/v1beta1/experiment/manifest"
-	"github.com/kubeflow/katib/pkg/util/v1beta1/katibconfig"
 )
 
 func init() {
@@ -49,11 +49,11 @@ func TestValidateExperiment(t *testing.T) {
 	p := manifestmock.NewMockGenerator(mockCtrl)
 	g := New(p)
 
-	suggestionConfigData := katibconfig.SuggestionConfig{}
+	suggestionConfigData := configv1beta1.SuggestionConfig{}
 	suggestionConfigData.Image = "algorithmImage"
-	metricsCollectorConfigData := katibconfig.MetricsCollectorConfig{}
+	metricsCollectorConfigData := configv1beta1.MetricsCollectorConfig{}
 	metricsCollectorConfigData.Image = "metricsCollectorImage"
-	earlyStoppingConfigData := katibconfig.EarlyStoppingConfig{}
+	earlyStoppingConfigData := configv1beta1.EarlyStoppingConfig{}
 
 	p.EXPECT().GetSuggestionConfigData(gomock.Any()).Return(suggestionConfigData, nil).AnyTimes()
 	p.EXPECT().GetMetricsCollectorConfigData(gomock.Any()).Return(metricsCollectorConfigData, nil).AnyTimes()
@@ -283,6 +283,54 @@ func TestValidateExperiment(t *testing.T) {
 			}(),
 			Err:             true,
 			testDescription: "Invalid feasible space in parameters",
+		},
+		{
+			Instance: func() *experimentsv1beta1.Experiment {
+				maxTrialCount := int32(5)
+				invalidMaxFailedTrialCount := int32(6)
+				i := newFakeInstance()
+				i.Spec.MaxTrialCount = &maxTrialCount
+				i.Spec.MaxFailedTrialCount = &invalidMaxFailedTrialCount
+				return i
+			}(),
+			Err:             true,
+			testDescription: "maxFailedTrialCount greater than maxTrialCount",
+		},
+		{
+			Instance: func() *experimentsv1beta1.Experiment {
+				maxTrialCount := int32(5)
+				validMaxFailedTrialCount := int32(5)
+				i := newFakeInstance()
+				i.Spec.MaxTrialCount = &maxTrialCount
+				i.Spec.MaxFailedTrialCount = &validMaxFailedTrialCount
+				return i
+			}(),
+			Err:             false,
+			testDescription: "maxFailedTrialCount equal to maxTrialCount",
+		},
+		{
+			Instance: func() *experimentsv1beta1.Experiment {
+				maxTrialCount := int32(5)
+				invalidParallelTrialCount := int32(6)
+				i := newFakeInstance()
+				i.Spec.MaxTrialCount = &maxTrialCount
+				i.Spec.ParallelTrialCount = &invalidParallelTrialCount
+				return i
+			}(),
+			Err:             true,
+			testDescription: "parallelTrialCount greater than maxTrialCount",
+		},
+		{
+			Instance: func() *experimentsv1beta1.Experiment {
+				maxTrialCount := int32(5)
+				validParallelTrialCount := int32(5)
+				i := newFakeInstance()
+				i.Spec.MaxTrialCount = &maxTrialCount
+				i.Spec.ParallelTrialCount = &validParallelTrialCount
+				return i
+			}(),
+			Err:             false,
+			testDescription: "parallelTrialCount equal to maxTrialCount",
 		},
 	}
 
@@ -761,6 +809,19 @@ spec:
 		t.Errorf("ConvertStringToUnstructured failed: %v", err)
 	}
 
+	notKubernetesBatchJob := `apiVersion: test/v1
+kind: Job
+spec:
+  template:
+    spec:
+      containers:
+      - name: container`
+
+	notKubernetesBatchJobUnstr, err := util.ConvertStringToUnstructured(notKubernetesBatchJob)
+	if err != nil {
+		t.Errorf("ConvertStringToUnstructured failed: %v", err)
+	}
+
 	tcs := []struct {
 		RunSpec         *unstructured.Unstructured
 		Err             bool
@@ -787,6 +848,12 @@ spec:
 			Err:             false,
 			testDescription: "Valid case with nvidia.com/gpu resource in Trial template",
 		},
+		// Not kubernetes batch job
+		{
+			RunSpec:         notKubernetesBatchJobUnstr,
+			Err:             false,
+			testDescription: "Only validate Kuernetes Job",
+		},
 	}
 
 	for _, tc := range tcs {
@@ -808,7 +875,7 @@ func TestValidateMetricsCollector(t *testing.T) {
 	p := manifestmock.NewMockGenerator(mockCtrl)
 	g := New(p)
 
-	metricsCollectorConfigData := katibconfig.MetricsCollectorConfig{}
+	metricsCollectorConfigData := configv1beta1.MetricsCollectorConfig{}
 	metricsCollectorConfigData.Image = "metricsCollectorImage"
 
 	p.EXPECT().GetMetricsCollectorConfigData(gomock.Any()).Return(metricsCollectorConfigData, nil).AnyTimes()
@@ -1107,26 +1174,26 @@ func TestValidateConfigData(t *testing.T) {
 	p := manifestmock.NewMockGenerator(mockCtrl)
 	g := New(p)
 
-	suggestionConfigData := katibconfig.SuggestionConfig{}
+	suggestionConfigData := configv1beta1.SuggestionConfig{}
 	suggestionConfigData.Image = "algorithmImage"
 
 	validConfigCall := p.EXPECT().GetSuggestionConfigData(gomock.Any()).Return(suggestionConfigData, nil).Times(2)
-	invalidConfigCall := p.EXPECT().GetSuggestionConfigData(gomock.Any()).Return(katibconfig.SuggestionConfig{}, errors.New("GetSuggestionConfigData failed"))
+	invalidConfigCall := p.EXPECT().GetSuggestionConfigData(gomock.Any()).Return(configv1beta1.SuggestionConfig{}, errors.New("GetSuggestionConfigData failed"))
 
 	gomock.InOrder(
 		validConfigCall,
 		invalidConfigCall,
 	)
 
-	validEarlyStoppingConfigCall := p.EXPECT().GetEarlyStoppingConfigData(gomock.Any()).Return(katibconfig.EarlyStoppingConfig{}, nil)
-	invalidEarlyStoppingConfigCall := p.EXPECT().GetEarlyStoppingConfigData(gomock.Any()).Return(katibconfig.EarlyStoppingConfig{}, errors.New("GetEarlyStoppingConfigData failed"))
+	validEarlyStoppingConfigCall := p.EXPECT().GetEarlyStoppingConfigData(gomock.Any()).Return(configv1beta1.EarlyStoppingConfig{}, nil)
+	invalidEarlyStoppingConfigCall := p.EXPECT().GetEarlyStoppingConfigData(gomock.Any()).Return(configv1beta1.EarlyStoppingConfig{}, errors.New("GetEarlyStoppingConfigData failed"))
 
 	gomock.InOrder(
 		validEarlyStoppingConfigCall,
 		invalidEarlyStoppingConfigCall,
 	)
 
-	p.EXPECT().GetMetricsCollectorConfigData(gomock.Any()).Return(katibconfig.MetricsCollectorConfig{}, errors.New("GetMetricsCollectorConfigData failed"))
+	p.EXPECT().GetMetricsCollectorConfigData(gomock.Any()).Return(configv1beta1.MetricsCollectorConfig{}, errors.New("GetMetricsCollectorConfigData failed"))
 
 	batchJobStr := convertBatchJobToString(newFakeBatchJob())
 	p.EXPECT().GetTrialTemplate(gomock.Any()).Return(batchJobStr, nil).AnyTimes()

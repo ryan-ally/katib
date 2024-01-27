@@ -12,10 +12,11 @@ see the following user guides:
 
 ## Requirements
 
-- [Go](https://golang.org/) (1.17 or later)
+- [Go](https://golang.org/) (1.20 or later)
 - [Docker](https://docs.docker.com/) (20.10 or later)
+- [Docker Buildx](https://docs.docker.com/build/buildx/) (0.8.0 or later)
 - [Java](https://docs.oracle.com/javase/8/docs/technotes/guides/install/install_overview.html) (8 or later)
-- [Python](https://www.python.org/) (3.9 or later)
+- [Python](https://www.python.org/) (3.10 or later)
 - [kustomize](https://kustomize.io/) (4.0.5 or later)
 
 ## Build from source code
@@ -28,7 +29,7 @@ make build REGISTRY=<image-registry> TAG=<image-tag>
 
 To use your custom images for the Katib components, modify
 [Kustomization file](https://github.com/kubeflow/katib/blob/master/manifests/v1beta1/installs/katib-standalone/kustomization.yaml)
-and [Katib Config](https://github.com/kubeflow/katib/blob/master/manifests/v1beta1/components/controller/katib-config.yaml)
+and [Katib Config](https://github.com/kubeflow/katib/blob/master/manifests/v1beta1/installs/katib-standalone/katib-config.yaml)
 
 You can deploy Katib v1beta1 manifests into a Kubernetes cluster as follows:
 
@@ -41,6 +42,25 @@ You can undeploy Katib v1beta1 manifests from a Kubernetes cluster as follows:
 ```bash
 make undeploy
 ```
+
+## Technical and style guide
+
+The following guidelines apply primarily to Katib, 
+but other projects like [Training Operator](https://github.com/kubeflow/training-operator) might also adhere to them. 
+
+## Go Development
+
+When coding:
+
+- Follow [effective go](https://go.dev/doc/effective_go) guidelines.
+- Run locally [`make check`](https://github.com/kubeflow/katib/blob/46173463027e4fd2e604e25d7075b2b31a702049/Makefile#L31)
+to verify if changes follow best practices before submitting PRs.
+
+Testing:
+
+- Use [`cmp.Diff`](https://pkg.go.dev/github.com/google/go-cmp/cmp#Diff) instead of `reflect.Equal`, to provide useful comparisons.
+- Define test cases as maps instead of slices to avoid dependencies on the running order.
+Map key should be equal to the test case name.
 
 ## Modify controller APIs
 
@@ -56,16 +76,17 @@ make generate
 
 Below is a list of command-line flags accepted by Katib controller:
 
-| Name                            | Type                      | Default                       | Description                                                                                                            |
-| ------------------------------- | ------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| enable-grpc-probe-in-suggestion | bool                      | true                          | Enable grpc probe in suggestions                                                                                       |
-| experiment-suggestion-name      | string                    | "default"                     | The implementation of suggestion interface in experiment controller                                                    |
-| metrics-addr                    | string                    | ":8080"                       | The address the metric endpoint binds to                                                                               |
-| trial-resources                 | []schema.GroupVersionKind | null                          | The list of resources that can be used as trial template, in the form: Kind.version.group (e.g. TFJob.v1.kubeflow.org) |
-| webhook-inject-securitycontext  | bool                      | false                         | Inject the securityContext of container[0] in the sidecar                                                              |
-| webhook-port                    | int                       | 8443                          | The port number to be used for admission webhook server                                                                |
-| enable-leader-election          | bool                      | false                         | Enable leader election for katib-controller. Enabling this will ensure there is only one active katib-controller.      |
-| leader-election-id              | string                    | "3fbc96e9.katib.kubeflow.org" | The ID for leader election.                                                                                            |
+| Name         | Type   | Default | Description                                                                                                                      |
+|--------------|--------|---------|----------------------------------------------------------------------------------------------------------------------------------|
+| katib-config | string | ""      | The katib-controller will load its initial configuration from this file. Omit this flag to use the default configuration values. |
+
+## DB Manager Flags
+
+Below is a list of command-line flags accepted by Katib DB Manager:
+
+| Name            | Type          | Default | Description                                             |
+| --------------- | ------------- | ------- | ------------------------------------------------------- |
+| connect-timeout | time.Duration | 60s     | Timeout before calling error during database connection |
 
 ## Workflow design
 
@@ -98,25 +119,22 @@ plane CIDR source range to use the Katib webhooks
 
 ### Katib cert generator
 
-Katib uses the custom `cert-generator` [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
-to generate certificates for the webhooks.
+Katib Controller has the internal `cert-generator` to generate certificates for the webhooks.
 
-Once Katib is deployed in the Kubernetes cluster, the `cert-generator` Job follows these steps:
+Once Katib is deployed in the Kubernetes cluster, the `cert-generator` follows these steps:
 
-- Generate the self-signed CA certificate and private key.
+- Generate the self-signed certificate and private key.
 
-- Generate public certificate and private key signed with the key generated in the previous step.
-
-- Create a Kubernetes Secret with the signed certificate. Secret has
-  the `katib-webhook-cert` name and `cert-generator` Job's `ownerReference` to
-  clean-up resources once Katib is uninstalled.
-
-  Once Secret is created, the Katib controller Deployment spawns the Pod,
-  since the controller has the `katib-webhook-cert` Secret volume.
-
+- Update a Kubernetes Secret with the self-signed TLS certificate and private key.
+  
 - Patch the webhooks with the `CABundle`.
 
-You can find the `cert-generator` source code [here](../cmd/cert-generator/v1beta1).
+Once the `cert-generator` finished, the Katib controller starts to register controllers such as `experiment-controller` to the manager.
+
+You can find the `cert-generator` source code [here](../pkg/certgenerator/v1beta1).
+
+NOTE: the Katib also supports the [cert-manager](https://cert-manager.io/) to generate certs for the admission webhooks instead of using cert-generator.
+You can find the installation with the cert-manager [here](../manifests/v1beta1/installs/katib-cert-manager).
 
 ## Implement a new algorithm and use it in Katib
 
@@ -124,7 +142,7 @@ Please see [new-algorithm-service.md](./new-algorithm-service.md).
 
 ## Katib UI documentation
 
-Please see [Katib UI README](https://github.com/kubeflow/katib/tree/master/pkg/ui/v1beta1).
+Please see [Katib UI README](../pkg/ui/v1beta1).
 
 ## Design proposals
 

@@ -19,24 +19,35 @@ package consts
 import (
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/kubeflow/katib/pkg/util/v1beta1/env"
 )
 
 const (
 
+	// ActionTypeCreate is the create CRUD action
+	ActionTypeCreate = "create"
+	// ActionTypeList is the list CRUD action
+	ActionTypeList = "list"
+	// ActionTypeGet is the get CRUD action
+	ActionTypeGet = "get"
+	// ActionTypeUpdate is the update CRUD action
+	ActionTypeUpdate = "update"
+	// ActionTypeDelete is the delete CRUD action
+	ActionTypeDelete = "delete"
+
 	// PluralTrial is the plural for Trial object
 	PluralTrial = "trials"
+	// PluralExperiment is the plural for Experiment object
+	PluralExperiment = "experiments"
+	// PluralSuggestion is the plural for Suggestion object
+	PluralSuggestion = "suggestions"
 
 	// ConfigExperimentSuggestionName is the config name of the
 	// suggestion client implementation in experiment controller.
 	ConfigExperimentSuggestionName = "experiment-suggestion-name"
 
-	// ConfigCertLocalFS is the config name which indicates if we
-	// should store the cert in file system.
-	// TODO (andreyvelich): Currently is is not possible to store webhook cert in the local file system
-	// ConfigCertLocalFS = "cert-local-filesystem"
+	// CertDir is the location saved certs for the webhooks.
+	CertDir = "/tmp/cert"
 
 	// ConfigInjectSecurityContext is the config name which indicates
 	// if we should inject the security context into the metrics collector
@@ -53,6 +64,8 @@ const (
 	LabelExperimentName = "katib.kubeflow.org/experiment"
 	// LabelSuggestionName is the label of suggestion name.
 	LabelSuggestionName = "katib.kubeflow.org/suggestion"
+	// LabelTrialName is the label of trial name.
+	LabelTrialName = "katib.kubeflow.org/trial"
 	// LabelDeploymentName is the label of deployment name.
 	LabelDeploymentName = "katib.kubeflow.org/deployment"
 
@@ -71,10 +84,6 @@ const (
 	DefaultEarlyStoppingPortName = "earlystop-api"
 	// DefaultEarlyStoppingPort is the default port of EarlyStopping service.
 	DefaultEarlyStoppingPort = 6788
-
-	// DefaultGRPCService is the default suggestion service name,
-	// which is used to run healthz check using grpc probe.
-	DefaultGRPCService = "manager.v1beta1.Suggestion"
 
 	// DefaultGRPCRetryAttempts is the the maximum number of retries for gRPC calls
 	DefaultGRPCRetryAttempts = 10
@@ -95,35 +104,11 @@ const (
 
 	// KatibConfigMapName is the configmap name which includes Katib's configuration.
 	KatibConfigMapName = "katib-config"
-	// LabelSuggestionTag is the name of suggestion config in Katib configmap.
-	LabelSuggestionTag = "suggestion"
-	// LabelMetricsCollectorSidecar is the name of metrics collector config in Katib configmap.
-	LabelMetricsCollectorSidecar = "metrics-collector-sidecar"
-	// LabelEarlyStoppingTag is the name of early stopping config in Katib configmap.
-	LabelEarlyStoppingTag = "early-stopping"
-	// DefaultImagePullPolicy is the default value for image pull policy.
-	DefaultImagePullPolicy = corev1.PullIfNotPresent
-	// DefaultCPULimit is the default value for CPU limit.
-	DefaultCPULimit = "500m"
-	// DefaultCPURequest is the default value for CPU request.
-	DefaultCPURequest = "50m"
-	// DefaultMemLimit is the default value for memory limit.
-	DefaultMemLimit = "100Mi"
-	// DefaultMemRequest is the default value for memory request.
-	DefaultMemRequest = "10Mi"
-	// DefaultDiskLimit is the default value for disk limit.
-	DefaultDiskLimit = "5Gi"
-	// DefaultDiskRequest is the default value for disk request.
-	DefaultDiskRequest = "500Mi"
+	// LabelKatibConfigTag is the name of the config in Katib ConfigMap.
+	LabelKatibConfigTag = "katib-config.yaml"
 
-	// DefaultContainerSuggestionVolumeMountPath is the default mount path in suggestion container
-	DefaultContainerSuggestionVolumeMountPath = "/opt/katib/data"
-
-	// DefaultSuggestionVolumeStorage is the default value for suggestion's volume storage
-	DefaultSuggestionVolumeStorage = "1Gi"
-
-	// DefaultSuggestionVolumeAccessMode is the default value for suggestion's volume access mode
-	DefaultSuggestionVolumeAccessMode = corev1.ReadWriteOnce
+	// SuggestionVolumeMountKey specifies the AlgorithmSettings key used to toggle Suggestion managed trial storage
+	SuggestionVolumeMountKey = "suggestion_trial_dir"
 
 	// ReconcileErrorReason is the reason when there is a reconcile error.
 	ReconcileErrorReason = "ReconcileError"
@@ -179,6 +164,10 @@ var (
 	DefaultKatibDBManagerServiceIP = env.GetEnvOrDefault(DefaultKatibDBManagerServiceIPEnvName, "katib-db-manager")
 	// DefaultKatibDBManagerServicePort is the default Port of Katib DB Manager
 	DefaultKatibDBManagerServicePort = env.GetEnvOrDefault(DefaultKatibDBManagerServicePortEnvName, "6789")
+
+	// DefaultGRPCService is the default suggestion service name,
+	// which is used to run healthz check using grpc probe.
+	DefaultGRPCService = "manager.v1beta1.Suggestion"
 
 	// List of all valid keys of trial metadata for substitution in Trial template
 	TrialTemplateMetaKeys = []string{

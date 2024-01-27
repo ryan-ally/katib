@@ -37,7 +37,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	configv1beta1 "github.com/kubeflow/katib/pkg/apis/config/v1beta1"
 	apis "github.com/kubeflow/katib/pkg/apis/controller"
 	common "github.com/kubeflow/katib/pkg/apis/controller/common/v1beta1"
 	experimentsv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/experiments/v1beta1"
@@ -46,7 +48,6 @@ import (
 	"github.com/kubeflow/katib/pkg/controller.v1beta1/consts"
 	"github.com/kubeflow/katib/pkg/controller.v1beta1/util"
 	mccommon "github.com/kubeflow/katib/pkg/metricscollector/v1beta1/common"
-	"github.com/kubeflow/katib/pkg/util/v1beta1/katibconfig"
 )
 
 var (
@@ -263,7 +264,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 	}()
 
 	c := mgr.GetClient()
-	si := NewSidecarInjector(c)
+	si := NewSidecarInjector(c, admission.NewDecoder(mgr.GetScheme()))
 
 	testTrialName := "test-trial"
 	testSuggestionName := "test-suggestion"
@@ -321,7 +322,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 		MetricNames        string
 		MCSpec             common.MetricsCollectorSpec
 		EarlyStoppingRules []string
-		KatibConfig        katibconfig.MetricsCollectorConfig
+		KatibConfig        configv1beta1.MetricsCollectorConfig
 		ExpectedArgs       []string
 		Name               string
 		Err                bool
@@ -334,7 +335,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					Kind: common.StdOutCollector,
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{
+			KatibConfig: configv1beta1.MetricsCollectorConfig{
 				WaitAllProcesses: &waitAllProcessesValue,
 			},
 			ExpectedArgs: []string{
@@ -368,7 +369,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					},
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -394,7 +395,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					},
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -418,7 +419,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					},
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -436,7 +437,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					Kind: common.CustomCollector,
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -458,7 +459,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					},
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -476,7 +477,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 					Kind: common.PrometheusMetricCollector,
 				},
 			},
-			KatibConfig: katibconfig.MetricsCollectorConfig{},
+			KatibConfig: configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -494,7 +495,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 				},
 			},
 			EarlyStoppingRules: earlyStoppingRules,
-			KatibConfig:        katibconfig.MetricsCollectorConfig{},
+			KatibConfig:        configv1beta1.MetricsCollectorConfig{},
 			ExpectedArgs: []string{
 				"-t", testTrialName,
 				"-m", testMetricName,
@@ -520,7 +521,7 @@ func TestGetMetricsCollectorArgs(t *testing.T) {
 				},
 			},
 			EarlyStoppingRules: earlyStoppingRules,
-			KatibConfig:        katibconfig.MetricsCollectorConfig{},
+			KatibConfig:        configv1beta1.MetricsCollectorConfig{},
 			Name:               "Trial with invalid Experiment label name. Suggestion is not created",
 			Err:                true,
 		},
@@ -577,7 +578,7 @@ func TestNeedWrapWorkerContainer(t *testing.T) {
 	}
 }
 
-func TestMutateVolume(t *testing.T) {
+func TestMutateMetricsCollectorVolume(t *testing.T) {
 	tc := struct {
 		Pod                  v1.Pod
 		ExpectedPod          v1.Pod
@@ -644,14 +645,14 @@ func TestMutateVolume(t *testing.T) {
 		PathKind:             common.FileKind,
 	}
 
-	err := mutateVolume(
+	err := mutateMetricsCollectorVolume(
 		&tc.Pod,
 		tc.MountPath,
 		tc.SidecarContainerName,
 		tc.PrimaryContainerName,
 		tc.PathKind)
 	if err != nil {
-		t.Errorf("mutateVolume failed: %v", err)
+		t.Errorf("mutateMetricsCollectorVolume failed: %v", err)
 	} else if !equality.Semantic.DeepEqual(tc.Pod, tc.ExpectedPod) {
 		t.Errorf("Expected pod %v, got %v", tc.ExpectedPod, tc.Pod)
 	}
@@ -710,7 +711,7 @@ func TestGetKatibJob(t *testing.T) {
 	}()
 
 	c := mgr.GetClient()
-	si := NewSidecarInjector(c)
+	si := NewSidecarInjector(c, admission.NewDecoder(mgr.GetScheme()))
 
 	namespace := "default"
 	trialName := "trial-name"
@@ -1016,6 +1017,52 @@ func TestIsPrimaryPod(t *testing.T) {
 		isPrimary := isPrimaryPod(tc.podLabels, tc.primaryPodLabels)
 		if isPrimary != tc.isPrimary {
 			t.Errorf("Case %v. Expected isPrimary %v, got %v", tc.testDescription, tc.isPrimary, isPrimary)
+		}
+	}
+}
+
+func TestMutatePodMetadata(t *testing.T) {
+	mutatedPodLabels := map[string]string{
+		"custom-pod-label":    "custom-value",
+		"katib-experiment":    "katib-value",
+		consts.LabelTrialName: "test-trial",
+	}
+
+	testCases := []struct {
+		pod             *v1.Pod
+		trial           *trialsv1beta1.Trial
+		mutatedPod      *v1.Pod
+		testDescription string
+	}{
+		{
+			pod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"custom-pod-label": "custom-value",
+					},
+				},
+			},
+			trial: &trialsv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-trial",
+					Labels: map[string]string{
+						"katib-experiment": "katib-value",
+					},
+				},
+			},
+			mutatedPod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: mutatedPodLabels,
+				},
+			},
+			testDescription: "Mutated Pod should contain label from the origin Pod and Trial",
+		},
+	}
+
+	for _, tc := range testCases {
+		mutatePodMetadata(tc.pod, tc.trial)
+		if !reflect.DeepEqual(tc.mutatedPod, tc.pod) {
+			t.Errorf("Case %v. Expected Pod %v, got %v", tc.testDescription, tc.mutatedPod, tc.pod)
 		}
 	}
 }

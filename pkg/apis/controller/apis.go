@@ -14,12 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy, clientset, listers, informers for apis
-//go:generate ../../../hack/update-codegen.sh
-
-// Generate open-api for apis
-//go:generate ../../../hack/update-openapigen.sh
-
 // Package apis contains Kubernetes API groups.
 package apis
 

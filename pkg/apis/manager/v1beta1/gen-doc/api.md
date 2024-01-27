@@ -21,6 +21,7 @@
     - [GetObservationLogRequest](#api-v1-beta1-GetObservationLogRequest)
     - [GetSuggestionsReply](#api-v1-beta1-GetSuggestionsReply)
     - [GetSuggestionsReply.ParameterAssignments](#api-v1-beta1-GetSuggestionsReply-ParameterAssignments)
+    - [GetSuggestionsReply.ParameterAssignments.LabelsEntry](#api-v1-beta1-GetSuggestionsReply-ParameterAssignments-LabelsEntry)
     - [GetSuggestionsRequest](#api-v1-beta1-GetSuggestionsRequest)
     - [GraphConfig](#api-v1-beta1-GraphConfig)
     - [Metric](#api-v1-beta1-Metric)
@@ -40,6 +41,7 @@
     - [SetTrialStatusRequest](#api-v1-beta1-SetTrialStatusRequest)
     - [Trial](#api-v1-beta1-Trial)
     - [TrialSpec](#api-v1-beta1-TrialSpec)
+    - [TrialSpec.LabelsEntry](#api-v1-beta1-TrialSpec-LabelsEntry)
     - [TrialSpec.ParameterAssignments](#api-v1-beta1-TrialSpec-ParameterAssignments)
     - [TrialStatus](#api-v1-beta1-TrialStatus)
     - [ValidateAlgorithmSettingsReply](#api-v1-beta1-ValidateAlgorithmSettingsReply)
@@ -339,6 +341,24 @@ Discrete and Categorical type use List.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | assignments | [ParameterAssignment](#api-v1-beta1-ParameterAssignment) | repeated |  |
+| trial_name | [string](#string) |  | Optional field to override the trial name |
+| labels | [GetSuggestionsReply.ParameterAssignments.LabelsEntry](#api-v1-beta1-GetSuggestionsReply-ParameterAssignments-LabelsEntry) | repeated | Optional field to add labels to the generated Trials |
+
+
+
+
+
+
+<a name="api-v1-beta1-GetSuggestionsReply-ParameterAssignments-LabelsEntry"></a>
+
+### GetSuggestionsReply.ParameterAssignments.LabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 
@@ -355,7 +375,6 @@ Discrete and Categorical type use List.
 | ----- | ---- | ----- | ----------- |
 | experiment | [Experiment](#api-v1-beta1-Experiment) |  |  |
 | trials | [Trial](#api-v1-beta1-Trial) | repeated | All completed trials owned by the experiment. |
-| request_number | [int32](#int32) |  | **Deprecated.** Use current_request_number instead. This API will be removed in Katib 0.14. The number of Suggestions requested at one time. |
 | current_request_number | [int32](#int32) |  | The number of Suggestions requested at one time. When you set 3 to current_request_number, you get three Suggestions at one time. |
 | total_request_number | [int32](#int32) |  | The number of Suggestions requested till now. |
 
@@ -635,6 +654,23 @@ Specification of a Trial. It represents Trial&#39;s parameter assignments and ob
 | ----- | ---- | ----- | ----------- |
 | objective | [ObjectiveSpec](#api-v1-beta1-ObjectiveSpec) |  | Objective specification for the Trial. |
 | parameter_assignments | [TrialSpec.ParameterAssignments](#api-v1-beta1-TrialSpec-ParameterAssignments) |  | List of assignments generated for the Trial. |
+| labels | [TrialSpec.LabelsEntry](#api-v1-beta1-TrialSpec-LabelsEntry) | repeated | Map of labels assigned to the Trial |
+
+
+
+
+
+
+<a name="api-v1-beta1-TrialSpec-LabelsEntry"></a>
+
+### TrialSpec.LabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 
@@ -771,7 +807,7 @@ Types of value for HyperParameter.
 <a name="api-v1-beta1-TrialStatus-TrialConditionType"></a>
 
 ### TrialStatus.TrialConditionType
-Trial can be in one of 6 conditions.
+Trial can be in one of 8 conditions.
 TODO (andreyvelich): Remove unused conditions.
 
 | Name | Number | Description |
@@ -781,8 +817,9 @@ TODO (andreyvelich): Remove unused conditions.
 | SUCCEEDED | 2 |  |
 | KILLED | 3 |  |
 | FAILED | 4 |  |
-| EARLYSTOPPED | 5 |  |
-| UNKNOWN | 6 |  |
+| METRICSUNAVAILABLE | 5 |  |
+| EARLYSTOPPED | 6 |  |
+| UNKNOWN | 7 |  |
 
 
  

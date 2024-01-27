@@ -1,11 +1,15 @@
 HAS_LINT := $(shell command -v golangci-lint;)
-HAS_SHELLCHECK := $(shell command shellcheck --version)
-HAS_SETUP_ENVTEST := $(shell command setup-envtest list)
+HAS_YAMLLINT := $(shell command -v yamllint;)
+HAS_SHELLCHECK := $(shell command -v shellcheck;)
+HAS_SETUP_ENVTEST := $(shell command -v setup-envtest;)
+HAS_MOCKGEN := $(shell command -v mockgen;)
 
 COMMIT := v1beta1-$(shell git rev-parse --short=7 HEAD)
 KATIB_REGISTRY := docker.io/kubeflowkatib
 CPU_ARCH ?= amd64
-ENVTEST_K8S_VERSION ?= 1.22
+ENVTEST_K8S_VERSION ?= 1.27
+MOCKGEN_VERSION ?= $(shell grep 'github.com/golang/mock' go.mod | cut -d ' ' -f 2)
+GO_VERSION=$(shell grep '^go' go.mod | cut -d ' ' -f 2)
 
 # for pytest
 PYTHONPATH := $(PYTHONPATH):$(CURDIR)/pkg/apis/manager/v1beta1/python:$(CURDIR)/pkg/apis/manager/health/python
@@ -19,23 +23,29 @@ test: envtest
 
 envtest:
 ifndef HAS_SETUP_ENVTEST
-	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@c48baad70c539a2efb8dfe8850434ecc721c1ee1 # v0.10.0
-	echo "setup-envtest has been installed"
+	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@935faeba70039b5403616e73f109f4b6b1115b9f #v0.15.0
+	$(info "setup-envtest has been installed")
 endif
-	echo "setup-envtest has already installed"
+	$(info "setup-envtest has already installed")
 
-
-check: generate fmt vet lint
+check: generated-codes go-mod fmt vet lint
 
 fmt:
 	hack/verify-gofmt.sh
 
 lint:
 ifndef HAS_LINT
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
-	echo "golangci-lint has been installed"
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.53.3
+	$(info "golangci-lint has been installed")
 endif
 	hack/verify-golangci-lint.sh
+
+yamllint:
+ifndef HAS_YAMLLINT
+	pip install --prefer-binary yamllint
+	$(info "yamllint has been installed")
+endif
+	hack/verify-yamllint.sh
 
 vet:
 	go vet ./pkg/... ./cmd/...
@@ -43,7 +53,7 @@ vet:
 shellcheck:
 ifndef HAS_SHELLCHECK
 	bash hack/install-shellcheck.sh
-	echo "shellcheck has been installed"
+	$(info "shellcheck has been installed")
 endif
 	hack/verify-shellcheck.sh
 
@@ -52,25 +62,49 @@ update:
 
 # Deploy Katib v1beta1 manifests using Kustomize into a k8s cluster.
 deploy:
-	bash scripts/v1beta1/deploy.sh
+	bash scripts/v1beta1/deploy.sh $(WITH_DATABASE_TYPE)
 
 # Undeploy Katib v1beta1 manifests using Kustomize from a k8s cluster
 undeploy:
 	bash scripts/v1beta1/undeploy.sh
 
+generated-codes: generate
+ifneq ($(shell bash hack/verify-generated-codes.sh '.'; echo $$?),0)
+	$(error 'Please run "make generate" to generate codes')
+endif
+
+go-mod: sync-go-mod
+ifneq ($(shell bash hack/verify-generated-codes.sh 'go.*'; echo $$?),0)
+	$(error 'Please run "go mod tidy -go $(GO_VERSION)" to sync Go modules')
+endif
+
+sync-go-mod:
+	go mod tidy -go $(GO_VERSION)
+
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+.PHONY: controller-gen
+controller-gen:
+	@GOBIN=$(shell pwd)/bin GO111MODULE=on go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0
+
 # Run this if you update any existing controller APIs.
-# 1. Genereate deepcopy, clientset, listers, informers for the APIs (hack/update-codegen.sh)
+# 1. Generate deepcopy, clientset, listers, informers for the APIs (hack/update-codegen.sh)
 # 2. Generate open-api for the APIs (hack/update-openapigen)
 # 3. Generate Python SDK for Katib (hack/gen-python-sdk/gen-sdk.sh)
 # 4. Generate gRPC manager APIs (pkg/apis/manager/v1beta1/build.sh and pkg/apis/manager/health/build.sh)
-generate:
+# 5. Generate Go mock codes
+generate: controller-gen
 ifndef GOPATH
 	$(error GOPATH not defined, please define GOPATH. Run "go help gopath" to learn more about GOPATH)
+endif
+ifndef HAS_MOCKGEN
+	go install github.com/golang/mock/mockgen@$(MOCKGEN_VERSION)
+	$(info "mockgen has been installed")
 endif
 	go generate ./pkg/... ./cmd/...
 	hack/gen-python-sdk/gen-sdk.sh
 	pkg/apis/manager/v1beta1/build.sh
 	pkg/apis/manager/health/build.sh
+	hack/update-mockgen.sh
 
 # Build images for the Katib v1beta1 components.
 build: generate
@@ -114,23 +148,27 @@ endif
 
 # Prettier UI format check for Katib v1beta1.
 prettier-check:
-	npm run format:check --prefix pkg/new-ui/v1beta1/frontend
+	npm run format:check --prefix pkg/ui/v1beta1/frontend
 
 # Update boilerplate for the source code.
 update-boilerplate:
 	./hack/boilerplate/update-boilerplate.sh
 
 prepare-pytest:
-	pip install -r test/unit/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/chocolate/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/hyperopt/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/skopt/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/optuna/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/hyperband/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/nas/enas/v1beta1/requirements.txt
-	pip install -r cmd/suggestion/nas/darts/v1beta1/requirements.txt
-	pip install -r cmd/earlystopping/medianstop/v1beta1/requirements.txt
-	pip install -r cmd/metricscollector/v1beta1/tfevent-metricscollector/requirements.txt
+	pip install --prefer-binary -r test/unit/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/hyperopt/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/skopt/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/optuna/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/hyperband/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/nas/enas/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/nas/darts/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/suggestion/pbt/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/earlystopping/medianstop/v1beta1/requirements.txt
+	pip install --prefer-binary -r cmd/metricscollector/v1beta1/tfevent-metricscollector/requirements.txt
+	# The sqlalchemy on which optuna depends requires typing-extensions>=4.6.0.
+	# REF: https://github.com/kubeflow/katib/pull/2251
+	# TODO (tenzen-y): Once we upgrade libraries depended on typing-extensions==4.5.0, we can remove this line.
+	pip install typing-extensions==4.6.3
 
 prepare-pytest-testdata:
 ifeq ("$(wildcard $(TEST_TENSORFLOW_EVENT_FILE_PATH))", "")

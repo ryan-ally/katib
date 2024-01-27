@@ -14,14 +14,45 @@
 
 import os
 
+# How long to wait in seconds for requests to the Kubernetes or gRPC API Server.
+DEFAULT_TIMEOUT = 120
+
 # Global CRD version
-KATIB_VERSION = os.environ.get('EXPERIMENT_VERSION', 'v1beta1')
+KATIB_VERSION = os.environ.get("EXPERIMENT_VERSION", "v1beta1")
 
 # Katib K8S constants
-KUBEFLOW_GROUP = 'kubeflow.org'
-EXPERIMENT_PLURAL = 'experiments'
-SUGGESTION_PLURAL = 'suggestions'
-TRIAL_PLURAL = 'trials'
+KUBEFLOW_GROUP = "kubeflow.org"
+EXPERIMENT_KIND = "Experiment"
+EXPERIMENT_PLURAL = "experiments"
+SUGGESTION_PLURAL = "suggestions"
+TRIAL_PLURAL = "trials"
 
-# How long to wait in seconds for requests to the ApiServer
-APISERVER_TIMEOUT = 120
+
+DEFAULT_PRIMARY_CONTAINER_NAME = "training-container"
+
+# Label to identify Experiment's resources.
+EXPERIMENT_LABEL = "katib.kubeflow.org/experiment"
+
+# True means that Katib CR is in this condition.
+CONDITION_STATUS_TRUE = "True"
+
+# Experiment conditions.
+# TODO (andreyvelich): Use API enums when Katib SDK supports it.
+# Ref: https://github.com/kubeflow/katib/issues/1969.
+EXPERIMENT_CONDITION_CREATED = "Created"
+EXPERIMENT_CONDITION_RUNNING = "Running"
+EXPERIMENT_CONDITION_RESTARTING = "Restarting"
+EXPERIMENT_CONDITION_SUCCEEDED = "Succeeded"
+EXPERIMENT_CONDITION_FAILED = "Failed"
+
+# Trial conditions.
+TRIAL_CONDITION_SUCCEEDED = "Succeeded"
+
+# Supported base images for the Katib Trials.
+# TODO (andreyvelich): Implement list_base_images function to get each image description.
+BASE_IMAGE_TENSORFLOW = "docker.io/tensorflow/tensorflow:2.13.0"
+BASE_IMAGE_TENSORFLOW_GPU = "docker.io/tensorflow/tensorflow:2.13.0-gpu"
+BASE_IMAGE_PYTORCH = "docker.io/pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime"
+BASE_IMAGE_MXNET = "docker.io/mxnet/python:1.9.1_native_py3"
+
+DEFAULT_DB_MANAGER_ADDRESS = "katib-db-manager.kubeflow:6789"

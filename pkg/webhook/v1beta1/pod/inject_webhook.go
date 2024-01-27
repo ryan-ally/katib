@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -33,7 +34,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	configv1beta1 "github.com/kubeflow/katib/pkg/apis/config/v1beta1"
 	common "github.com/kubeflow/katib/pkg/apis/controller/common/v1beta1"
+	experimentsv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/experiments/v1beta1"
 	suggestionsv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/suggestions/v1beta1"
 	trialsv1beta1 "github.com/kubeflow/katib/pkg/apis/controller/trials/v1beta1"
 	katibmanagerv1beta1 "github.com/kubeflow/katib/pkg/common/v1beta1"
@@ -55,20 +58,12 @@ type SidecarInjector struct {
 }
 
 // NewSidecarInjector returns a new sidecar injector with the given client.
-func NewSidecarInjector(c client.Client) *SidecarInjector {
+func NewSidecarInjector(c client.Client, d *admission.Decoder) *SidecarInjector {
 	return &SidecarInjector{
 		injectSecurityContext: viper.GetBool(consts.ConfigInjectSecurityContext),
 		client:                c,
+		decoder:               d,
 	}
-}
-
-// SidecarInjector implements admission.DecoderInjector.
-// A decoder will be automatically injected.
-
-// InjectDecoder injects the decoder.
-func (s *SidecarInjector) InjectDecoder(d *admission.Decoder) error {
-	s.decoder = d
-	return nil
 }
 
 func (s *SidecarInjector) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -92,7 +87,7 @@ func (s *SidecarInjector) Handle(ctx context.Context, req admission.Request) adm
 	// Do mutation
 	mutatedPod, err := s.Mutate(pod, namespace)
 	if err != nil {
-		log.Error(err, "Failed to inject metrics collector")
+		log.Error(err, "Failed to mutate Trial's pod")
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
@@ -122,17 +117,6 @@ func (s *SidecarInjector) MutationRequired(pod *v1.Pod, ns string) (bool, error)
 		return false, err
 	}
 
-	// If PrimaryPodLabel is not set we mutate all pods which are related to Trial job
-	// Otherwise mutate pod only with appropriate labels
-	if trial.Spec.PrimaryPodLabels != nil {
-		if !isPrimaryPod(pod.Labels, trial.Spec.PrimaryPodLabels) {
-			return false, nil
-		}
-	}
-
-	if trial.Spec.MetricsCollector.Collector.Kind == common.NoneCollector {
-		return false, nil
-	}
 	return true, nil
 }
 
@@ -153,18 +137,39 @@ func (s *SidecarInjector) Mutate(pod *v1.Pod, namespace string) (*v1.Pod, error)
 		return nil, err
 	}
 
+	// Add Katib Trial labels to the Pod metadata.
+	mutatePodMetadata(mutatedPod, trial)
+
+	// Do the following mutation only for the Primary pod.
+	// If PrimaryPodLabel is not set we mutate all pods which are related to Trial job.
+	// Otherwise, mutate pod only with the appropriate labels.
+	if trial.Spec.PrimaryPodLabels != nil && !isPrimaryPod(pod.Labels, trial.Spec.PrimaryPodLabels) {
+		return mutatedPod, nil
+	}
+
+	// If Metrics Collector in None, skip the mutation.
+	if trial.Spec.MetricsCollector.Collector.Kind == common.NoneCollector {
+		return mutatedPod, nil
+	}
+
+	// Create metrics sidecar container spec
 	injectContainer, err := s.getMetricsCollectorContainer(trial, pod)
 	if err != nil {
 		return nil, err
 	}
 	mutatedPod.Spec.Containers = append(mutatedPod.Spec.Containers, *injectContainer)
 
+	// Enable shared volume between suggestion <> trial
+	if err = s.mutateSuggestionVolume(mutatedPod, injectContainer.Name, trial); err != nil {
+		return nil, err
+	}
+
 	isShareProcessNamespace := true
 	mutatedPod.Spec.ShareProcessNamespace = &isShareProcessNamespace
 
 	mountPath, pathKind := getMountPath(trial.Spec.MetricsCollector)
 	if mountPath != "" {
-		if err = mutateVolume(mutatedPod, mountPath, injectContainer.Name, trial.Spec.PrimaryContainerName, pathKind); err != nil {
+		if err = mutateMetricsCollectorVolume(mutatedPod, mountPath, injectContainer.Name, trial.Spec.PrimaryContainerName, pathKind); err != nil {
 			return nil, err
 		}
 	}
@@ -286,7 +291,7 @@ func (s *SidecarInjector) getKatibJob(object *unstructured.Unstructured, namespa
 	return jobKind, jobName, nil
 }
 
-func (s *SidecarInjector) getMetricsCollectorArgs(trial *trialsv1beta1.Trial, metricNames string, mc common.MetricsCollectorSpec, metricsCollectorConfigData katibconfig.MetricsCollectorConfig, esRules []string) ([]string, error) {
+func (s *SidecarInjector) getMetricsCollectorArgs(trial *trialsv1beta1.Trial, metricNames string, mc common.MetricsCollectorSpec, metricsCollectorConfigData configv1beta1.MetricsCollectorConfig, esRules []string) ([]string, error) {
 	args := []string{"-t", trial.Name, "-m", metricNames, "-o-type", string(trial.Spec.Objective.Type), "-s-db", katibmanagerv1beta1.GetDBManagerAddr()}
 	if mountPath, _ := getMountPath(mc); mountPath != "" {
 		args = append(args, "-path", mountPath)
@@ -323,4 +328,57 @@ func (s *SidecarInjector) getMetricsCollectorArgs(trial *trialsv1beta1.Trial, me
 	}
 
 	return args, nil
+}
+
+// Mutate trial container with shared Suggestions PVC when algorithm settings contains suggestion_trial_dir
+func (s *SidecarInjector) mutateSuggestionVolume(pod *v1.Pod, primaryContainerName string, trial *trialsv1beta1.Trial) error {
+	// Suggestion name == Experiment name
+	// Suggestion namespace == Trial namespace
+	experimentName := trial.ObjectMeta.Labels[consts.LabelExperimentName]
+	experiment := &experimentsv1beta1.Experiment{}
+	if err := s.client.Get(context.TODO(), apitypes.NamespacedName{Name: experimentName, Namespace: trial.Namespace}, experiment); err != nil {
+		return err
+	}
+	suggestion := &suggestionsv1beta1.Suggestion{}
+	if err := s.client.Get(context.TODO(), apitypes.NamespacedName{Name: experimentName, Namespace: trial.Namespace}, suggestion); err != nil {
+		return err
+	}
+
+	// Check if mutation is needed
+	checkpointPath := ""
+	for _, s := range suggestion.Spec.Algorithm.AlgorithmSettings {
+		if s.Name == consts.SuggestionVolumeMountKey && s.Value != "" {
+			checkpointPath = s.Value
+			break
+		}
+	}
+	if checkpointPath == "" {
+		return nil
+	}
+
+	// Generate folder name in format: <ExperimentName>/<TrialName>
+	checkpointFolder := filepath.Join(experimentName, trial.Name)
+
+	// Suggestion volume for the trial to the MetricsCollector
+	suggestionVolume := v1.Volume{
+		Name: consts.ContainerSuggestionVolumeName,
+		VolumeSource: v1.VolumeSource{
+			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				ClaimName: util.GetSuggestionPersistentVolumeClaimName(suggestion),
+			},
+		},
+	}
+
+	vm := v1.VolumeMount{
+		Name:      suggestionVolume.Name,
+		MountPath: checkpointPath,
+		SubPath:   checkpointFolder,
+	}
+
+	primaryContainerIndex := getPrimaryContainerIndex(pod.Spec.Containers, trial.Spec.PrimaryContainerName)
+	addContainerVolumeMount(&pod.Spec.Containers[primaryContainerIndex], &vm)
+
+	pod.Spec.Volumes = append(pod.Spec.Volumes, suggestionVolume)
+
+	return nil
 }
