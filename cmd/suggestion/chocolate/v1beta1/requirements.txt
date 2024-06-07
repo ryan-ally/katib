@@ -1,7 +1,7 @@
 grpcio==1.41.1
 cloudpickle==0.5.6
 numpy>=1.20.0
-scikit-learn>=0.24.0
+scikit-learn>=1.5.0
 scipy>=1.5.4
 forestci==0.3
 protobuf==3.19.1
