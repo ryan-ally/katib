@@ -1,4 +1,4 @@
-FROM python:3.13.0a3-slim
+FROM python:3.13.0b3-slim
 
 ADD examples/v1beta1/trial-images/mxnet-mnist /opt/mxnet-mnist
 WORKDIR /opt/mxnet-mnist
