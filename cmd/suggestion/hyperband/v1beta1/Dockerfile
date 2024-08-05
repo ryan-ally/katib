@@ -9,7 +9,7 @@ RUN if [ "$(uname -m)" = "ppc64le" ]; then \
     fi && \
     chmod +x /bin/grpc_health_probe
 
-FROM python:3.9-slim
+FROM python:3.13.0b4-slim
 ENV TARGET_DIR /opt/katib
 ENV SUGGESTION_DIR cmd/suggestion/hyperband/v1beta1
 
