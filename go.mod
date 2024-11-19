@@ -16,7 +16,7 @@ require (
 	github.com/hpcloud/tail v1.0.1-0.20180514194441-a1dbeea552b7
 	github.com/mattbaird/jsonpatch v0.0.0-20171005235357-81af80346b1a
 	github.com/onsi/gomega v1.17.0
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.9.0
