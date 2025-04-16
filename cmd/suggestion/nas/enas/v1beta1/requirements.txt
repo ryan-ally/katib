@@ -1,4 +1,4 @@
-grpcio==1.41.1
+grpcio==1.53.2
 googleapis-common-protos==1.6.0
 cython>=0.29.24
 tensorflow==2.10.1; platform_machine=="x86_64"
