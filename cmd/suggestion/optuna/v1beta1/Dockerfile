@@ -9,7 +9,7 @@ RUN if [ "$(uname -m)" = "ppc64le" ]; then \
     fi && \
     chmod +x /bin/grpc_health_probe
 
-FROM python:3.9-slim
+FROM python:3.12.0b1-slim
 ENV TARGET_DIR /opt/katib
 ENV SUGGESTION_DIR cmd/suggestion/optuna/v1beta1
 
