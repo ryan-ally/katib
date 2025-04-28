@@ -1,7 +1,7 @@
 grpcio==1.41.1
 googleapis-common-protos==1.6.0
 cython>=0.29.24
-tensorflow==2.10.1; platform_machine=="x86_64"
+tensorflow==2.12.0rc1; platform_machine=="x86_64"
 tensorflow-aarch64==2.9.1; platform_machine=="aarch64"
 numpy>=1.22.2 # not directly required, pinned by Snyk to avoid a vulnerability
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
