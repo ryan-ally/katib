@@ -1,6 +1,7 @@
 grpcio==1.41.1
-protobuf==3.19.1
+protobuf==4.25.8
 googleapis-common-protos==1.6.0
 kubernetes==22.6.0
 cython>=0.29.24
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
+urllib3>=2.5.0 # not directly required, pinned by Snyk to avoid a vulnerability
