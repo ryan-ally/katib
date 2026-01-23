@@ -36,7 +36,7 @@
     "d3-shape": "^2.0.0",
     "date-fns": "1.29.0",
     "js-yaml": "^4.0.0",
-    "lodash-es": "4.17.11",
+    "lodash-es": "4.17.23",
     "material-icons": "^0.3.1",
     "ng2-ace-editor": "^0.3.9",
     "ngx-json-viewer": "^2.4.0",
@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~19.0.0",
-    "@angular/cli": "~12.2.7",
+    "@angular/cli": "~20.3.15",
     "@angular/compiler-cli": "~12.2.7",
     "@angular/language-service": "~12.2.7",
     "@kubernetes/client-node": "^1.0.0",
